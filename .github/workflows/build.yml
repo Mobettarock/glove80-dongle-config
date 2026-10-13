@@ -47,7 +47,7 @@ jobs:
       - name: Checkout Glove80 Dongle Shield Module
         uses: actions/checkout@v4
         with:
-          repository: alonsoperez/zmk-glove80-dongle
+          repository: ebastler/zmk-glove80-dongle
           path: glove80-dongle-module
       - name: Initialize Zephyr
         run: |
