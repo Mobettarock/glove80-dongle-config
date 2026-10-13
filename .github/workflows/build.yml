@@ -1,35 +1,28 @@
 name: Build
-
-on: [push, pull_request, workflow_dispatch]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - uses: actions/checkout@v4
-        with:
-          repository: moergo-sc/zmk
-          ref: main
-          path: src
-      - uses: cachix/install-nix-action@v25
-        with:
-          nix_path: nixpkgs=channel:nixos-22.05
-      - uses: cachix/cachix-action@v14
-        with:
-          name: moergo-glove80-zmk-dev
-          skipPush: true
-      - name: Build Glove80 combined firmware
-        run: nix-build --arg config '../config' -o result
-        working-directory: src
-      - name: Copy firmware artifacts
-        run: |
-          mkdir -p firmware
-          find src/result* -name "*.uf2" -exec cp {} firmware/ \; || true
-      - name: Upload firmware
-        uses: actions/upload-artifact@v4
-        with:
-          name: glove80_firmware
-          path: firmware/*
+​on: [push, pull_request, workflow_dispatch]
+​jobs:
+build:
+runs-on: ubuntu-latest
+steps:
+- uses: actions/checkout@v4
+with:
+submodules: recursive
+- uses: actions/checkout@v4
+with:
+repository: moergo-sc/zmk
+ref: main
+path: src
+- uses: cachix/install-nix-action@v25
+with:
+nix_path: nixpkgs=channel:nixos-22.05
+- uses: cachix/cachix-action@v14
+with:
+name: moergo-glove80-zmk-dev
+skipPush: true
+- name: Build Glove80 combined firmware
+run: ./build.sh
+- name: Upload firmware
+uses: actions/upload-artifact@v4
+with:
+name: glove80_firmware
+path: glove80.uf2
