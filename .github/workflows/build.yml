@@ -93,8 +93,10 @@ jobs:
             -DCONFIG_ZMK_SPLIT=y \
             -DCONFIG_ZMK_SPLIT_BLE=y \
             -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y
+      - name: Copy UF2 to root
+        run: cp zmk/app/build/dongle/zephyr/zmk.uf2 ./dongle.uf2
       - name: Upload Dongle Artifact
         uses: actions/upload-artifact@v4
         with:
           name: dongle_firmware
-          path: zmk/app/build/dongle/zephyr/zmk.uf2
+          path: dongle.uf2
