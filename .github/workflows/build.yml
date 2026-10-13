@@ -22,7 +22,7 @@ jobs:
           name: moergo-glove80-zmk-dev
           skipPush: true
       - name: Build Glove80 combined firmware
-        run: nix-build config/default.nix --arg config '../config' -o result
+        run: nix-build --arg config '../config' -o result
         working-directory: src
       - name: Copy firmware artifacts
         run: |
