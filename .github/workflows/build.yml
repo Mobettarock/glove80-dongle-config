@@ -34,14 +34,15 @@ jobs:
     container:
       image: zmkfirmware/zmk-build-arm:stable
     steps:
-      - name: Checkout repo
+      - name: Checkout user repo
         uses: actions/checkout@v4
         with:
           path: config-repo
-      - name: Checkout ZMK
+      - name: Checkout MoErgo ZMK
         uses: actions/checkout@v4
         with:
-          repository: zmkfirmware/zmk
+          repository: moergo-sc/zmk
+          ref: main
           path: zmk
       - name: Initialize Zephyr
         run: |
@@ -52,7 +53,10 @@ jobs:
       - name: Build Dongle
         run: |
           cd zmk/app
-          west build -b nrf52840_mdk_usb_dongle -d build/dongle -- -DZMK_CONFIG="/__w/glove80-dongle-config/glove80-dongle-config/config-repo/config"
+          west build -b nrf52840_mdk_usb_dongle -d build/dongle -- \
+            -DSHIELD="glove80_dongle" \
+            -DZMK_CONFIG="/__w/glove80-dongle-config/glove80-dongle-config/config-repo/config" \
+            -DCONFIG_ZMK_KEYMAP_NAME=\"glove80\"
       - name: Upload Dongle Artifact
         uses: actions/upload-artifact@v4
         with:
