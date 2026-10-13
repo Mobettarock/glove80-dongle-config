@@ -44,11 +44,6 @@ jobs:
           repository: moergo-sc/zmk
           ref: main
           path: zmk
-      - name: Checkout Glove80 Dongle Shield Module
-        uses: actions/checkout@v4
-        with:
-          repository: ebastler/zmk-glove80-dongle
-          path: glove80-dongle-module
       - name: Initialize Zephyr
         run: |
           cd zmk
@@ -59,9 +54,10 @@ jobs:
         run: |
           cd zmk/app
           west build -b nrf52840_mdk_usb_dongle -d build/dongle -- \
-            -DSHIELD="glove80_dongle" \
-            -DZMK_EXTRA_MODULES="/__w/glove80-dongle-config/glove80-dongle-config/glove80-dongle-module" \
-            -DZMK_CONFIG="/__w/glove80-dongle-config/glove80-dongle-config/config-repo/config"
+            -DZMK_CONFIG="/__w/glove80-dongle-config/glove80-dongle-config/config-repo/config" \
+            -DCONFIG_ZMK_SPLIT=y \
+            -DCONFIG_ZMK_SPLIT_BLE=y \
+            -DCONFIG_ZMK_SPLIT_BLE_ROLE_CENTRAL=y
       - name: Upload Dongle Artifact
         uses: actions/upload-artifact@v4
         with:
