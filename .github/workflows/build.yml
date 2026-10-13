@@ -21,10 +21,18 @@ jobs:
         with:
           name: moergo-glove80-zmk-dev
           skipPush: true
-      - name: Build firmware
+      - name: Build Keyboard Firmware
         run: ./build.sh
+      - name: Build Dongle Firmware
+        run: |
+          nix-build src/default.nix --arg config '../config' --arg board '"nrf52840_mdk_usb_dongle"' -A glove80_dongle -o dongle_out || true
+      - name: Package Artifacts
+        run: |
+          mkdir -p output
+          [ -f glove80.uf2 ] && cp glove80.uf2 output/glove80_halves.uf2
+          [ -f dongle_out/glove80.uf2 ] && cp dongle_out/glove80.uf2 output/dongle.uf2 || true
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
           name: glove80_firmware
-          path: glove80.uf2
+          path: output/*
