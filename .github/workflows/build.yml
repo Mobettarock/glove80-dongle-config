@@ -36,16 +36,25 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-      - name: Initialize Zephyr workspace
+        with:
+          path: config-repo
+      - name: Checkout ZMK
+        uses: actions/checkout@v4
+        with:
+          repository: zmkfirmware/zmk
+          path: zmk
+      - name: Initialize Zephyr
         run: |
-          west init -l config
+          cd zmk
+          west init -l app/
           west update
           west zephyr-export
-      - name: Build Dongle UF2
+      - name: Build Dongle
         run: |
-          west build -s zmk/app -b nrf52840_mdk_usb_dongle -d build/dongle -- -DZMK_CONFIG="$(pwd)/config"
+          cd zmk/app
+          west build -b nrf52840_mdk_usb_dongle -d build/dongle -- -DZMK_CONFIG="/__w/glove80-dongle-config/glove80-dongle-config/config-repo/config"
       - name: Upload Dongle Artifact
         uses: actions/upload-artifact@v4
         with:
           name: dongle_firmware
-          path: build/dongle/zephyr/zmk.uf2
+          path: zmk/app/build/dongle/zephyr/zmk.uf2
