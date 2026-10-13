@@ -3,7 +3,7 @@ name: Build
 on: [push, pull_request, workflow_dispatch]
 
 jobs:
-  build:
+  build-keyboard:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,16 +23,29 @@ jobs:
           skipPush: true
       - name: Build Keyboard Firmware
         run: ./build.sh
-      - name: Build Dongle Firmware
-        run: |
-          nix-build src/default.nix --arg config '../config' --arg board '"nrf52840_mdk_usb_dongle"' -A glove80_dongle -o dongle_out || true
-      - name: Package Artifacts
-        run: |
-          mkdir -p output
-          [ -f glove80.uf2 ] && cp glove80.uf2 output/glove80_halves.uf2
-          [ -f dongle_out/glove80.uf2 ] && cp dongle_out/glove80.uf2 output/dongle.uf2 || true
-      - name: Upload firmware
+      - name: Upload Keyboard Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: glove80_firmware
-          path: output/*
+          name: glove80_halves
+          path: glove80.uf2
+
+  build-dongle:
+    runs-on: ubuntu-latest
+    container:
+      image: zmkfirmware/zmk-build-arm:stable
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Initialize Zephyr workspace
+        run: |
+          west init -l config
+          west update
+          west zephyr-export
+      - name: Build Dongle UF2
+        run: |
+          west build -s zmk/app -b nrf52840_mdk_usb_dongle -d build/dongle -- -DZMK_CONFIG="$(pwd)/config"
+      - name: Upload Dongle Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dongle_firmware
+          path: build/dongle/zephyr/zmk.uf2
