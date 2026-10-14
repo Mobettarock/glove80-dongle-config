@@ -3,36 +3,7 @@ name: Build
 on: [push, pull_request, workflow_dispatch]
 
 jobs:
-  build-keyboard:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - uses: actions/checkout@v4
-        with:
-          repository: moergo-sc/zmk
-          ref: main
-          path: src
-      - uses: cachix/install-nix-action@v25
-        with:
-          nix_path: nixpkgs=channel:nixos-22.05
-      - uses: cachix/cachix-action@v14
-        with:
-          name: moergo-glove80-zmk-dev
-          skipPush: true
-      - name: Build Keyboard Firmware
-        run: |
-          echo "CONFIG_ZMK_SPLIT_ROLE_CENTRAL=n" >> config/glove80.conf
-          echo "CONFIG_ZMK_RGB_UNDERGLOW=n" >> config/glove80.conf
-          ./build.sh
-      - name: Upload Keyboard Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: glove80_halves
-          path: glove80.uf2
-
-  build-dongle:
+  build-firmware:
     runs-on: ubuntu-latest
     container:
       image: zmkfirmware/zmk-build-arm:stable
@@ -53,7 +24,23 @@ jobs:
           west init -l app/
           west update
           west zephyr-export
-      - name: Prepare Keymap and Overlay
+          
+      - name: Patch MoErgo Peripheral Linker Error
+        run: |
+          # Bypasses central-only RGB dependencies so the left half boots safely as a peripheral
+          cat << 'EOF' >> zmk/app/src/rgb_underglow.c
+          
+          #ifndef CONFIG_ZMK_SPLIT_ROLE_CENTRAL
+          uint8_t zmk_hid_indicators_get_current_profile(void) { return 0; }
+          bool zmk_keymap_layer_active(uint8_t layer) { return false; }
+          uint32_t zmk_endpoints_selected(void) { return 0; }
+          bool zmk_endpoints_preferred_transport_is_active(void) { return false; }
+          uint8_t zmk_ble_active_profile_index(void) { return 0; }
+          bool zmk_ble_profile_status(uint8_t index) { return false; }
+          #endif
+          EOF
+
+      - name: Prepare Dongle Overlay
         run: |
           CONFIG_DIR="$GITHUB_WORKSPACE/config-repo/config"
           cp "$CONFIG_DIR/glove80.keymap" "$CONFIG_DIR/nrf52840_mdk_usb_dongle.keymap"
@@ -88,7 +75,8 @@ jobs:
               };
           };
           EOF
-      - name: Build Dongle Primary Firmware
+
+      - name: Build Dongle (Central)
         run: |
           cd zmk/app
           west build -b nrf52840_mdk_usb_dongle -d build/dongle -- \
@@ -97,52 +85,39 @@ jobs:
             -DCONFIG_ZMK_SPLIT_BLE=y \
             -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y \
             -DCONFIG_ZMK_SPLIT_BLE_CENTRAL_PERIPHERALS=2 \
+            -DCONFIG_BT_MAX_CONN=7 \
+            -DCONFIG_BT_MAX_PAIRED=7 \
             -DCONFIG_ZMK_USB=y \
             -DCONFIG_USB_DEVICE_HID=y \
             -DCONFIG_USB_DEVICE_STACK=y \
+            -DCONFIG_ZMK_POINTING=y \
+            -DCONFIG_USB_DEVICE_PRODUCT=\"Glove80_Keyboard\" \
+            -DCONFIG_USB_DEVICE_MANUFACTURER=\"MoErgo\" \
             -DCONFIG_BUILD_OUTPUT_UF2=y
-          
-          if [ -f "build/dongle/zephyr/zmk.uf2" ]; then
-            cp build/dongle/zephyr/zmk.uf2 "$GITHUB_WORKSPACE/dongle.uf2"
-          elif [ -f "build/dongle/zephyr/zephyr.uf2" ]; then
-            cp build/dongle/zephyr/zephyr.uf2 "$GITHUB_WORKSPACE/dongle.uf2"
-          else
-            UF2CONV="$GITHUB_WORKSPACE/zmk/zephyr/scripts/build/uf2conv.py"
-            if [ -f "build/dongle/zephyr/zmk.hex" ]; then
-              python3 "$UF2CONV" -c -f 0xADA52840 -o "$GITHUB_WORKSPACE/dongle.uf2" build/dongle/zephyr/zmk.hex
-            elif [ -f "build/dongle/zephyr/zephyr.hex" ]; then
-              python3 "$UF2CONV" -c -f 0xADA52840 -o "$GITHUB_WORKSPACE/dongle.uf2" build/dongle/zephyr/zephyr.hex
-            fi
-          fi
+          cp build/dongle/zephyr/zmk.uf2 "$GITHUB_WORKSPACE/glove80_dongle.uf2"
 
-      - name: Build Dongle Settings Reset
+      - name: Build Left Half (Peripheral)
         run: |
           cd zmk/app
-          west build -b nrf52840_mdk_usb_dongle -d build/reset -- \
-            -DSHIELD=settings_reset \
+          west build -b glove80_lh -d build/left -- \
+            -DZMK_CONFIG="$GITHUB_WORKSPACE/config-repo/config" \
+            -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=n \
             -DCONFIG_BUILD_OUTPUT_UF2=y
-          
-          if [ -f "build/reset/zephyr/zmk.uf2" ]; then
-            cp build/reset/zephyr/zmk.uf2 "$GITHUB_WORKSPACE/dongle_reset.uf2"
-          elif [ -f "build/reset/zephyr/zephyr.uf2" ]; then
-            cp build/reset/zephyr/zephyr.uf2 "$GITHUB_WORKSPACE/dongle_reset.uf2"
-          else
-            UF2CONV="$GITHUB_WORKSPACE/zmk/zephyr/scripts/build/uf2conv.py"
-            if [ -f "build/reset/zephyr/zmk.hex" ]; then
-              python3 "$UF2CONV" -c -f 0xADA52840 -o "$GITHUB_WORKSPACE/dongle_reset.uf2" build/reset/zephyr/zmk.hex
-            elif [ -f "build/reset/zephyr/zephyr.hex" ]; then
-              python3 "$UF2CONV" -c -f 0xADA52840 -o "$GITHUB_WORKSPACE/dongle_reset.uf2" build/reset/zephyr/zephyr.hex
-            fi
-          fi
+          cp build/left/zephyr/zmk.uf2 "$GITHUB_WORKSPACE/glove80_left.uf2"
 
-      - name: Upload Dongle Firmware Artifact
+      - name: Build Right Half (Peripheral)
+        run: |
+          cd zmk/app
+          west build -b glove80_rh -d build/right -- \
+            -DZMK_CONFIG="$GITHUB_WORKSPACE/config-repo/config" \
+            -DCONFIG_BUILD_OUTPUT_UF2=y
+          cp build/right/zephyr/zmk.uf2 "$GITHUB_WORKSPACE/glove80_right.uf2"
+
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: dongle_firmware
-          path: dongle.uf2
-
-      - name: Upload Dongle Reset Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: dongle_settings_reset
-          path: dongle_reset.uf2
+          name: glove80_dongle_system
+          path: |
+            glove80_dongle.uf2
+            glove80_left.uf2
+            glove80_right.uf2
