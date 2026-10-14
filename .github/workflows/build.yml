@@ -93,9 +93,12 @@ jobs:
             -DCONFIG_ZMK_SPLIT=y \
             -DCONFIG_ZMK_SPLIT_BLE=y \
             -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y
-          find / -name "zmk.uf2" -exec cp {} /__w/glove80-dongle-config/glove80-dongle-config/dongle.uf2 \;
       - name: Upload Dongle Artifact
         uses: actions/upload-artifact@v4
         with:
           name: dongle_firmware
-          path: dongle.uf2
+          path: |
+            zmk/app/build/dongle/zephyr/zmk.uf2
+            zmk/app/build/dongle/zephyr/zephyr.uf2
+            **/zmk.uf2
+            **/zephyr.uf2
