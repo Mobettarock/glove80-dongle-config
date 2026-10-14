@@ -85,7 +85,7 @@ jobs:
               };
           };
           EOF
-      - name: Build Dongle
+      - name: Build Dongle Primary Firmware
         run: |
           cd zmk/app
           west build -b nrf52840_mdk_usb_dongle -d build/dongle -- \
@@ -96,26 +96,46 @@ jobs:
             -DCONFIG_BUILD_OUTPUT_UF2=y
           
           if [ -f "build/dongle/zephyr/zmk.uf2" ]; then
-            echo "Native UF2 found: zmk.uf2"
             cp build/dongle/zephyr/zmk.uf2 "$GITHUB_WORKSPACE/dongle.uf2"
           elif [ -f "build/dongle/zephyr/zephyr.uf2" ]; then
-            echo "Native UF2 found: zephyr.uf2"
             cp build/dongle/zephyr/zephyr.uf2 "$GITHUB_WORKSPACE/dongle.uf2"
           else
-            echo "Converting compiled hex to UF2..."
             UF2CONV="$GITHUB_WORKSPACE/zmk/zephyr/scripts/build/uf2conv.py"
             if [ -f "build/dongle/zephyr/zmk.hex" ]; then
               python3 "$UF2CONV" -c -f 0xADA52840 -o "$GITHUB_WORKSPACE/dongle.uf2" build/dongle/zephyr/zmk.hex
             elif [ -f "build/dongle/zephyr/zephyr.hex" ]; then
               python3 "$UF2CONV" -c -f 0xADA52840 -o "$GITHUB_WORKSPACE/dongle.uf2" build/dongle/zephyr/zephyr.hex
-            else
-              echo "Error: No hex file found. Directory contents:"
-              ls -la build/dongle/zephyr/
-              exit 1
             fi
           fi
-      - name: Upload Dongle Artifact
+
+      - name: Build Dongle Settings Reset
+        run: |
+          cd zmk/app
+          west build -b nrf52840_mdk_usb_dongle -d build/reset -- \
+            -DSHIELD=settings_reset \
+            -DCONFIG_BUILD_OUTPUT_UF2=y
+          
+          if [ -f "build/reset/zephyr/zmk.uf2" ]; then
+            cp build/reset/zephyr/zmk.uf2 "$GITHUB_WORKSPACE/dongle_reset.uf2"
+          elif [ -f "build/reset/zephyr/zephyr.uf2" ]; then
+            cp build/reset/zephyr/zephyr.uf2 "$GITHUB_WORKSPACE/dongle_reset.uf2"
+          else
+            UF2CONV="$GITHUB_WORKSPACE/zmk/zephyr/scripts/build/uf2conv.py"
+            if [ -f "build/reset/zephyr/zmk.hex" ]; then
+              python3 "$UF2CONV" -c -f 0xADA52840 -o "$GITHUB_WORKSPACE/dongle_reset.uf2" build/reset/zephyr/zmk.hex
+            elif [ -f "build/reset/zephyr/zephyr.hex" ]; then
+              python3 "$UF2CONV" -c -f 0xADA52840 -o "$GITHUB_WORKSPACE/dongle_reset.uf2" build/reset/zephyr/zephyr.hex
+            fi
+          fi
+
+      - name: Upload Dongle Firmware Artifact
         uses: actions/upload-artifact@v4
         with:
           name: dongle_firmware
           path: dongle.uf2
+
+      - name: Upload Dongle Reset Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dongle_settings_reset
+          path: dongle_reset.uf2
