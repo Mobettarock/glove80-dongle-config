@@ -94,10 +94,15 @@ jobs:
             -DCONFIG_ZMK_SPLIT_BLE=y \
             -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y
           
-          # Copy whatever UF2 was generated directly into the host mounted workspace
-          UF2_FILE=$(find build/dongle -name "*.uf2" | head -n 1)
-          echo "Found compiled UF2: $UF2_FILE"
-          cp "$UF2_FILE" "$GITHUB_WORKSPACE/zmk.uf2"
+          # Convert the compiled binary into UF2 format using nRF52 family ID (0xADA52840)
+          python3 /__w/glove80-dongle-config/glove80-dongle-config/zmk/zephyr/scripts/misc/uf2conv.py \
+            -c -b 0x1000 -f 0xADA52840 \
+            -o /__w/glove80-dongle-config/glove80-dongle-config/zmk.uf2 \
+            build/dongle/zephyr/zephyr.bin || \
+          python3 /__w/glove80-dongle-config/glove80-dongle-config/zmk/zephyr/scripts/misc/uf2conv.py \
+            -c -f 0xADA52840 \
+            -o /__w/glove80-dongle-config/glove80-dongle-config/zmk.uf2 \
+            build/dongle/zephyr/zephyr.bin
       - name: Upload Dongle Artifact
         uses: actions/upload-artifact@v4
         with:
