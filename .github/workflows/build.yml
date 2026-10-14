@@ -93,6 +93,9 @@ jobs:
             -DCONFIG_ZMK_SPLIT=y \
             -DCONFIG_ZMK_SPLIT_BLE=y \
             -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y \
+            -DCONFIG_ZMK_USB=y \
+            -DCONFIG_USB_DEVICE_HID=y \
+            -DCONFIG_USB_DEVICE_STACK=y \
             -DCONFIG_BUILD_OUTPUT_UF2=y
           
           if [ -f "build/dongle/zephyr/zmk.uf2" ]; then
