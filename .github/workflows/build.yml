@@ -86,6 +86,10 @@ jobs:
           };
           EOF
 
+      - name: Download Official UF2 Converter
+        run: |
+          wget -O $GITHUB_WORKSPACE/uf2conv.py https://raw.githubusercontent.com/microsoft/uf2/master/utils/uf2conv.py
+
       - name: Build Dongle Settings Reset
         run: |
           cd zmk/app
@@ -94,11 +98,12 @@ jobs:
             -DCONFIG_USE_DT_CODE_PARTITION=y \
             -DCONFIG_BUILD_OUTPUT_UF2=y
           
-          UF2CONV=$(find / -name "uf2conv.py" 2>/dev/null | head -n 1)
-          if [ -f build/reset/zephyr/zephyr.uf2 ]; then
+          if [ -f build/reset/zephyr/zmk.uf2 ]; then
+            cp build/reset/zephyr/zmk.uf2 "$GITHUB_WORKSPACE/settings_reset.uf2"
+          elif [ -f build/reset/zephyr/zephyr.uf2 ]; then
             cp build/reset/zephyr/zephyr.uf2 "$GITHUB_WORKSPACE/settings_reset.uf2"
-          elif [ -f build/reset/zephyr/zephyr.hex ]; then
-            python3 "$UF2CONV" -c -f 0xADA52840 -o "$GITHUB_WORKSPACE/settings_reset.uf2" build/reset/zephyr/zephyr.hex
+          else
+            python3 $GITHUB_WORKSPACE/uf2conv.py -c -f 0xADA52840 -o "$GITHUB_WORKSPACE/settings_reset.uf2" build/reset/zephyr/zephyr.hex
           fi
 
       - name: Build Dongle Primary Firmware
@@ -110,13 +115,15 @@ jobs:
             -DCONFIG_ZMK_SPLIT=y \
             -DCONFIG_ZMK_SPLIT_BLE=y \
             -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y \
+            -DCONFIG_ZMK_SPLIT_BLE_CENTRAL_PERIPHERALS=2 \
             -DCONFIG_BUILD_OUTPUT_UF2=y
           
-          UF2CONV=$(find / -name "uf2conv.py" 2>/dev/null | head -n 1)
-          if [ -f build/dongle/zephyr/zephyr.uf2 ]; then
+          if [ -f build/dongle/zephyr/zmk.uf2 ]; then
+            cp build/dongle/zephyr/zmk.uf2 "$GITHUB_WORKSPACE/dongle.uf2"
+          elif [ -f build/dongle/zephyr/zephyr.uf2 ]; then
             cp build/dongle/zephyr/zephyr.uf2 "$GITHUB_WORKSPACE/dongle.uf2"
-          elif [ -f build/dongle/zephyr/zephyr.hex ]; then
-            python3 "$UF2CONV" -c -f 0xADA52840 -o "$GITHUB_WORKSPACE/dongle.uf2" build/dongle/zephyr/zephyr.hex
+          else
+            python3 $GITHUB_WORKSPACE/uf2conv.py -c -f 0xADA52840 -o "$GITHUB_WORKSPACE/dongle.uf2" build/dongle/zephyr/zephyr.hex
           fi
 
       - name: Upload Dongle Artifacts
