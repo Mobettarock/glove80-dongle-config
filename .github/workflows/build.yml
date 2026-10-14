@@ -52,7 +52,7 @@ jobs:
           west zephyr-export
       - name: Prepare Keymap and Overlay
         run: |
-          CONFIG_DIR="/__w/glove80-dongle-config/glove80-dongle-config/config-repo/config"
+          CONFIG_DIR="$GITHUB_WORKSPACE/config-repo/config"
           cp "$CONFIG_DIR/glove80.keymap" "$CONFIG_DIR/nrf52840_mdk_usb_dongle.keymap"
           cat << 'EOF' > "$CONFIG_DIR/nrf52840_mdk_usb_dongle.overlay"
           #include <dt-bindings/zmk/matrix_transform.h>
@@ -85,39 +85,44 @@ jobs:
               };
           };
           EOF
-      - name: Build Dongle
+
+      - name: Build Dongle Settings Reset
         run: |
           cd zmk/app
-          west build -b nrf52840_mdk_usb_dongle -d build/dongle -- \
-            -DZMK_CONFIG="/__w/glove80-dongle-config/glove80-dongle-config/config-repo/config" \
+          west build -p -b nrf52840_mdk_usb_dongle -d build/reset -- \
+            -DSHIELD=settings_reset \
+            -DCONFIG_USE_DT_CODE_PARTITION=y \
+            -DCONFIG_BUILD_OUTPUT_UF2=y
+          
+          UF2CONV=$(find / -name "uf2conv.py" 2>/dev/null | head -n 1)
+          if [ -f build/reset/zephyr/zephyr.uf2 ]; then
+            cp build/reset/zephyr/zephyr.uf2 "$GITHUB_WORKSPACE/settings_reset.uf2"
+          elif [ -f build/reset/zephyr/zephyr.hex ]; then
+            python3 "$UF2CONV" -c -f 0xADA52840 -o "$GITHUB_WORKSPACE/settings_reset.uf2" build/reset/zephyr/zephyr.hex
+          fi
+
+      - name: Build Dongle Primary Firmware
+        run: |
+          cd zmk/app
+          west build -p -b nrf52840_mdk_usb_dongle -d build/dongle -- \
+            -DZMK_CONFIG="$GITHUB_WORKSPACE/config-repo/config" \
+            -DCONFIG_USE_DT_CODE_PARTITION=y \
             -DCONFIG_ZMK_SPLIT=y \
             -DCONFIG_ZMK_SPLIT_BLE=y \
             -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y \
             -DCONFIG_BUILD_OUTPUT_UF2=y
           
-          UF2_FILE=$(find build/dongle -name "*.uf2" | head -n 1)
-          if [ -n "$UF2_FILE" ]; then
-            cp "$UF2_FILE" "$GITHUB_WORKSPACE/zmk.uf2"
-          else
-            echo "Native UF2 generation bypassed. Using fallback converter..."
-            cd build/dongle/zephyr
-            UF2CONV=$(find / -name "uf2conv.py" 2>/dev/null | head -n 1)
-            
-            if [ -f zmk.hex ]; then
-              python3 "$UF2CONV" -c -f 0xADA52840 -o "$GITHUB_WORKSPACE/zmk.uf2" zmk.hex
-            elif [ -f zephyr.hex ]; then
-              python3 "$UF2CONV" -c -f 0xADA52840 -o "$GITHUB_WORKSPACE/zmk.uf2" zephyr.hex
-            elif [ -f zmk.bin ]; then
-              python3 "$UF2CONV" -c -b 0x1000 -f 0xADA52840 -o "$GITHUB_WORKSPACE/zmk.uf2" zmk.bin
-            elif [ -f zephyr.bin ]; then
-              python3 "$UF2CONV" -c -b 0x1000 -f 0xADA52840 -o "$GITHUB_WORKSPACE/zmk.uf2" zephyr.bin
-            else
-              echo "Error: No compiled binary or hex found!"
-              exit 1
-            fi
+          UF2CONV=$(find / -name "uf2conv.py" 2>/dev/null | head -n 1)
+          if [ -f build/dongle/zephyr/zephyr.uf2 ]; then
+            cp build/dongle/zephyr/zephyr.uf2 "$GITHUB_WORKSPACE/dongle.uf2"
+          elif [ -f build/dongle/zephyr/zephyr.hex ]; then
+            python3 "$UF2CONV" -c -f 0xADA52840 -o "$GITHUB_WORKSPACE/dongle.uf2" build/dongle/zephyr/zephyr.hex
           fi
-      - name: Upload Dongle Artifact
+
+      - name: Upload Dongle Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: dongle_firmware
-          path: zmk.uf2
+          name: dongle_firmware_and_reset
+          path: |
+            settings_reset.uf2
+            dongle.uf2
