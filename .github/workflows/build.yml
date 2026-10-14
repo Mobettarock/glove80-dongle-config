@@ -93,12 +93,13 @@ jobs:
             -DCONFIG_ZMK_SPLIT=y \
             -DCONFIG_ZMK_SPLIT_BLE=y \
             -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y
+          
+          # Copy whatever UF2 was generated directly into the host mounted workspace
+          UF2_FILE=$(find build/dongle -name "*.uf2" | head -n 1)
+          echo "Found compiled UF2: $UF2_FILE"
+          cp "$UF2_FILE" "$GITHUB_WORKSPACE/zmk.uf2"
       - name: Upload Dongle Artifact
         uses: actions/upload-artifact@v4
         with:
           name: dongle_firmware
-          path: |
-            zmk/app/build/dongle/zephyr/zmk.uf2
-            zmk/app/build/dongle/zephyr/zephyr.uf2
-            **/zmk.uf2
-            **/zephyr.uf2
+          path: zmk.uf2
