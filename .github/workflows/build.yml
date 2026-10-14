@@ -92,16 +92,29 @@ jobs:
             -DZMK_CONFIG="/__w/glove80-dongle-config/glove80-dongle-config/config-repo/config" \
             -DCONFIG_ZMK_SPLIT=y \
             -DCONFIG_ZMK_SPLIT_BLE=y \
-            -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y
+            -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y \
+            -DCONFIG_BUILD_OUTPUT_UF2=y
           
-          UF2CONV=$(find / -name "uf2conv.py" 2>/dev/null | head -n 1)
-          BIN_FILE=$(find build/dongle -name "*.bin" | head -n 1)
-          HEX_FILE=$(find build/dongle -name "*.hex" | head -n 1)
-          
-          if [ -n "$BIN_FILE" ]; then
-            python3 "$UF2CONV" -c -b 0x1000 -f 0xADA52840 -o /__w/glove80-dongle-config/glove80-dongle-config/zmk.uf2 "$BIN_FILE"
-          elif [ -n "$HEX_FILE" ]; then
-            python3 "$UF2CONV" -c -f 0xADA52840 -o /__w/glove80-dongle-config/glove80-dongle-config/zmk.uf2 "$HEX_FILE"
+          UF2_FILE=$(find build/dongle -name "*.uf2" | head -n 1)
+          if [ -n "$UF2_FILE" ]; then
+            cp "$UF2_FILE" "$GITHUB_WORKSPACE/zmk.uf2"
+          else
+            echo "Native UF2 generation bypassed. Using fallback converter..."
+            cd build/dongle/zephyr
+            UF2CONV=$(find / -name "uf2conv.py" 2>/dev/null | head -n 1)
+            
+            if [ -f zmk.hex ]; then
+              python3 "$UF2CONV" -c -f 0xADA52840 -o "$GITHUB_WORKSPACE/zmk.uf2" zmk.hex
+            elif [ -f zephyr.hex ]; then
+              python3 "$UF2CONV" -c -f 0xADA52840 -o "$GITHUB_WORKSPACE/zmk.uf2" zephyr.hex
+            elif [ -f zmk.bin ]; then
+              python3 "$UF2CONV" -c -b 0x1000 -f 0xADA52840 -o "$GITHUB_WORKSPACE/zmk.uf2" zmk.bin
+            elif [ -f zephyr.bin ]; then
+              python3 "$UF2CONV" -c -b 0x1000 -f 0xADA52840 -o "$GITHUB_WORKSPACE/zmk.uf2" zephyr.bin
+            else
+              echo "Error: No compiled binary or hex found!"
+              exit 1
+            fi
           fi
       - name: Upload Dongle Artifact
         uses: actions/upload-artifact@v4
