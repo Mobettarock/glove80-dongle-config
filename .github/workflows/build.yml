@@ -21,10 +21,11 @@ jobs:
         with:
           name: moergo-glove80-zmk-dev
           skipPush: true
-      - name: Build Peripheral Keyboard Firmware
+      - name: Build Keyboard Firmware
         run: |
-          # Patch config to force peripheral role for both halves
+          # Force peripheral role and disable central-dependent RGB indicators
           echo "CONFIG_ZMK_SPLIT_ROLE_CENTRAL=n" >> config/glove80.conf
+          echo "CONFIG_ZMK_RGB_UNDERGLOW=n" >> config/glove80.conf
           ./build.sh
       - name: Upload Keyboard Artifact
         uses: actions/upload-artifact@v4
