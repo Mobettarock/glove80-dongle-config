@@ -23,7 +23,6 @@ jobs:
           skipPush: true
       - name: Build Keyboard Firmware
         run: |
-          # Force peripheral role and disable central-dependent RGB indicators
           echo "CONFIG_ZMK_SPLIT_ROLE_CENTRAL=n" >> config/glove80.conf
           echo "CONFIG_ZMK_RGB_UNDERGLOW=n" >> config/glove80.conf
           ./build.sh
@@ -97,6 +96,7 @@ jobs:
             -DCONFIG_ZMK_SPLIT=y \
             -DCONFIG_ZMK_SPLIT_BLE=y \
             -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y \
+            -DCONFIG_ZMK_SPLIT_BLE_CENTRAL_PERIPHERALS=2 \
             -DCONFIG_ZMK_USB=y \
             -DCONFIG_USB_DEVICE_HID=y \
             -DCONFIG_USB_DEVICE_STACK=y \
