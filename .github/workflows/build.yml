@@ -95,8 +95,14 @@ jobs:
             -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y
           
           UF2CONV=$(find / -name "uf2conv.py" 2>/dev/null | head -n 1)
-          echo "Located uf2conv at: $UF2CONV"
-          python3 "$UF2CONV" -c -b 0x1000 -f 0xADA52840 -o /__w/glove80-dongle-config/glove80-dongle-config/zmk.uf2 build/dongle/zephyr/zephyr.bin
+          BIN_FILE=$(find build/dongle -name "*.bin" | head -n 1)
+          HEX_FILE=$(find build/dongle -name "*.hex" | head -n 1)
+          
+          if [ -n "$BIN_FILE" ]; then
+            python3 "$UF2CONV" -c -b 0x1000 -f 0xADA52840 -o /__w/glove80-dongle-config/glove80-dongle-config/zmk.uf2 "$BIN_FILE"
+          elif [ -n "$HEX_FILE" ]; then
+            python3 "$UF2CONV" -c -f 0xADA52840 -o /__w/glove80-dongle-config/glove80-dongle-config/zmk.uf2 "$HEX_FILE"
+          fi
       - name: Upload Dongle Artifact
         uses: actions/upload-artifact@v4
         with:
