@@ -21,8 +21,11 @@ jobs:
         with:
           name: moergo-glove80-zmk-dev
           skipPush: true
-      - name: Build Keyboard Firmware
-        run: ./build.sh
+      - name: Build Peripheral Keyboard Firmware
+        run: |
+          # Patch config to force peripheral role for both halves
+          echo "CONFIG_ZMK_SPLIT_ROLE_CENTRAL=n" >> config/glove80.conf
+          ./build.sh
       - name: Upload Keyboard Artifact
         uses: actions/upload-artifact@v4
         with:
