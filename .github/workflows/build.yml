@@ -85,51 +85,37 @@ jobs:
               };
           };
           EOF
-
-      - name: Download Official UF2 Converter
-        run: |
-          wget -O $GITHUB_WORKSPACE/uf2conv.py https://raw.githubusercontent.com/microsoft/uf2/master/utils/uf2conv.py
-
-      - name: Build Dongle Settings Reset
+      - name: Build Dongle
         run: |
           cd zmk/app
-          west build -p -b nrf52840_mdk_usb_dongle -d build/reset -- \
-            -DSHIELD=settings_reset \
-            -DCONFIG_USE_DT_CODE_PARTITION=y \
-            -DCONFIG_BUILD_OUTPUT_UF2=y
-          
-          if [ -f build/reset/zephyr/zmk.uf2 ]; then
-            cp build/reset/zephyr/zmk.uf2 "$GITHUB_WORKSPACE/settings_reset.uf2"
-          elif [ -f build/reset/zephyr/zephyr.uf2 ]; then
-            cp build/reset/zephyr/zephyr.uf2 "$GITHUB_WORKSPACE/settings_reset.uf2"
-          else
-            python3 $GITHUB_WORKSPACE/uf2conv.py -c -f 0xADA52840 -o "$GITHUB_WORKSPACE/settings_reset.uf2" build/reset/zephyr/zephyr.hex
-          fi
-
-      - name: Build Dongle Primary Firmware
-        run: |
-          cd zmk/app
-          west build -p -b nrf52840_mdk_usb_dongle -d build/dongle -- \
+          west build -b nrf52840_mdk_usb_dongle -d build/dongle -- \
             -DZMK_CONFIG="$GITHUB_WORKSPACE/config-repo/config" \
-            -DCONFIG_USE_DT_CODE_PARTITION=y \
             -DCONFIG_ZMK_SPLIT=y \
             -DCONFIG_ZMK_SPLIT_BLE=y \
             -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y \
-            -DCONFIG_ZMK_SPLIT_BLE_CENTRAL_PERIPHERALS=2 \
             -DCONFIG_BUILD_OUTPUT_UF2=y
           
-          if [ -f build/dongle/zephyr/zmk.uf2 ]; then
+          if [ -f "build/dongle/zephyr/zmk.uf2" ]; then
+            echo "Native UF2 found: zmk.uf2"
             cp build/dongle/zephyr/zmk.uf2 "$GITHUB_WORKSPACE/dongle.uf2"
-          elif [ -f build/dongle/zephyr/zephyr.uf2 ]; then
+          elif [ -f "build/dongle/zephyr/zephyr.uf2" ]; then
+            echo "Native UF2 found: zephyr.uf2"
             cp build/dongle/zephyr/zephyr.uf2 "$GITHUB_WORKSPACE/dongle.uf2"
           else
-            python3 $GITHUB_WORKSPACE/uf2conv.py -c -f 0xADA52840 -o "$GITHUB_WORKSPACE/dongle.uf2" build/dongle/zephyr/zephyr.hex
+            echo "Converting compiled hex to UF2..."
+            UF2CONV="$GITHUB_WORKSPACE/zmk/zephyr/scripts/build/uf2conv.py"
+            if [ -f "build/dongle/zephyr/zmk.hex" ]; then
+              python3 "$UF2CONV" -c -f 0xADA52840 -o "$GITHUB_WORKSPACE/dongle.uf2" build/dongle/zephyr/zmk.hex
+            elif [ -f "build/dongle/zephyr/zephyr.hex" ]; then
+              python3 "$UF2CONV" -c -f 0xADA52840 -o "$GITHUB_WORKSPACE/dongle.uf2" build/dongle/zephyr/zephyr.hex
+            else
+              echo "Error: No hex file found. Directory contents:"
+              ls -la build/dongle/zephyr/
+              exit 1
+            fi
           fi
-
-      - name: Upload Dongle Artifacts
+      - name: Upload Dongle Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dongle_firmware_and_reset
-          path: |
-            settings_reset.uf2
-            dongle.uf2
+          name: dongle_firmware
+          path: dongle.uf2
