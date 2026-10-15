@@ -24,19 +24,6 @@ jobs:
           west init -l app/
           west update
           west zephyr-export
-          
-      - name: Patch MoErgo Peripheral Linker Error
-        run: |
-          cat << 'EOF' >> zmk/app/src/rgb_underglow.c
-
-          /* Weak fallback stubs to satisfy linker when compiling as split peripheral */
-          __attribute__((weak)) int zmk_hid_indicators_get_current_profile(void) { return 0; }
-          __attribute__((weak)) int zmk_keymap_layer_active(int x) { return 0; }
-          __attribute__((weak)) int zmk_endpoints_selected(void) { return 0; }
-          __attribute__((weak)) int zmk_endpoints_preferred_transport_is_active(void) { return 0; }
-          __attribute__((weak)) int zmk_ble_active_profile_index(void) { return 0; }
-          __attribute__((weak)) int zmk_ble_profile_status(int x) { return 0; }
-          EOF
 
       - name: Prepare Dongle Overlay
         run: |
@@ -83,7 +70,7 @@ jobs:
       - name: Build Left Half (Peripheral)
         run: |
           cd zmk/app
-          west build -b glove80_lh -d build/left -- -DZMK_CONFIG="$GITHUB_WORKSPACE/config-repo/config" -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=n -DCONFIG_BUILD_OUTPUT_UF2=y
+          west build -b glove80_lh -d build/left -- -DZMK_CONFIG="$GITHUB_WORKSPACE/config-repo/config" -DCONFIG_BUILD_OUTPUT_UF2=y
           cp build/left/zephyr/zmk.uf2 "$GITHUB_WORKSPACE/glove80_left.uf2"
 
       - name: Build Right Half (Peripheral)
