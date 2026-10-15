@@ -33,7 +33,7 @@ jobs:
           #include <zmk/endpoints.h>
           uint8_t zmk_hid_indicators_get_current_profile(void) { return 0; }
           bool zmk_keymap_layer_active(uint8_t layer) { return false; }
-          enum zmk_endpoint zmk_endpoints_selected(void) { return 0; }
+          enum zmk_endpoint zmk_endpoints_selected(void) { return ZMK_ENDPOINT_BLE; }
           bool zmk_endpoints_preferred_transport_is_active(void) { return false; }
           uint8_t zmk_ble_active_profile_index(void) { return 0; }
           bool zmk_ble_profile_status(uint8_t index) { return false; }
@@ -99,25 +99,4 @@ jobs:
       - name: Build Left Half (Peripheral)
         run: |
           cd zmk/app
-          west build -b glove80_lh -d build/left -- \
-            -DZMK_CONFIG="$GITHUB_WORKSPACE/config-repo/config" \
-            -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=n \
-            -DCONFIG_BUILD_OUTPUT_UF2=y
-          cp build/left/zephyr/zmk.uf2 "$GITHUB_WORKSPACE/glove80_left.uf2"
-
-      - name: Build Right Half (Peripheral)
-        run: |
-          cd zmk/app
-          west build -b glove80_rh -d build/right -- \
-            -DZMK_CONFIG="$GITHUB_WORKSPACE/config-repo/config" \
-            -DCONFIG_BUILD_OUTPUT_UF2=y
-          cp build/right/zephyr/zmk.uf2 "$GITHUB_WORKSPACE/glove80_right.uf2"
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: glove80_dongle_system
-          path: |
-            glove80_dongle.uf2
-            glove80_left.uf2
-            glove80_right.uf2
+          west build -b
