@@ -27,17 +27,16 @@ jobs:
           
       - name: Patch MoErgo Peripheral Linker Error
         run: |
-          # Replace zmk_led_generate_status body with empty braces so central functions are never called
-          python3 -c "
-          with open('zmk/app/src/rgb_underglow.c', 'r') as f:
-              content = f.read()
-          start = content.find('void zmk_led_generate_status() {')
-          if start != -1:
-              end = content.find('\n}', start)
-              content = content[:start] + 'void zmk_led_generate_status() {}\n#if 0' + content[end+2:] + '\n#endif'
-              with open('zmk/app/src/rgb_underglow.c', 'w') as f:
-                  f.write(content)
-          "
+          cat << 'EOF' >> zmk/app/src/rgb_underglow.c
+
+          /* Weak fallback stubs to satisfy linker when compiling as split peripheral */
+          __attribute__((weak)) int zmk_hid_indicators_get_current_profile(void) { return 0; }
+          __attribute__((weak)) int zmk_keymap_layer_active(int x) { return 0; }
+          __attribute__((weak)) int zmk_endpoints_selected(void) { return 0; }
+          __attribute__((weak)) int zmk_endpoints_preferred_transport_is_active(void) { return 0; }
+          __attribute__((weak)) int zmk_ble_active_profile_index(void) { return 0; }
+          __attribute__((weak)) int zmk_ble_profile_status(int x) { return 0; }
+          EOF
 
       - name: Prepare Dongle Overlay
         run: |
